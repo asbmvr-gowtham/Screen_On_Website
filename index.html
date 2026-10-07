@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Keep Screen On</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f1115;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 25px;
+        }
+
+        .card {
+            background: #181b21;
+            border: 1px solid #292e38;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+        }
+
+        .logo {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #9ca3af;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .status-box {
+            background: #101216;
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #777;
+        }
+
+        .status-dot.active {
+            background: #22c55e;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+        }
+
+        .status-text {
+            color: #d1d5db;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            flex: 1;
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #startBtn {
+            background: #2563eb;
+            color: white;
+        }
+
+        #startBtn:hover {
+            background: #1d4ed8;
+        }
+
+        #stopBtn {
+            background: #292e38;
+            color: #d1d5db;
+        }
+
+        #stopBtn:hover {
+            background: #343a46;
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .info {
+            margin-top: 25px;
+            padding: 15px;
+            background: #111318;
+            border-radius: 12px;
+            color: #9ca3af;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .footer {
+            margin-top: 25px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        @media (max-width: 500px) {
+            .card {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <div class="logo">🖥️</div>
+
+        <h1>Keep Screen On</h1>
+
+        <p class="description">
+            Prevent your laptop screen from automatically sleeping
+            while this page is active.
+        </p>
+
+        <div class="status-box">
+
+            <div class="status">
+                <span id="statusDot" class="status-dot"></span>
+
+                <span id="statusText" class="status-text">
+                    Screen Wake Lock Off
+                </span>
+            </div>
+
+        </div>
+
+        <div class="buttons">
+
+            <button id="startBtn">
+                Start
+            </button>
+
+            <button id="stopBtn" disabled>
+                Stop
+            </button>
+
+        </div>
+
+        <div class="info">
+            Keep this browser tab open while you need the screen
+            to remain awake. The browser may release the wake lock
+            when the tab becomes inactive or when the system suspends
+            the browser.
+        </div>
+
+        <div class="footer">
+            Screen Wake Lock API
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+    let wakeLock = null;
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+
+
+    // Update UI
+    function updateStatus(active, message, error = false) {
+
+        statusText.textContent = message;
+
+        statusDot.classList.remove("active", "error");
+
+        if (active) {
+            statusDot.classList.add("active");
+        }
+
+        if (error) {
+            statusDot.classList.add("error");
+        }
+
+        startBtn.disabled = active;
+        stopBtn.disabled = !active;
+    }
+
+
+    // Start Wake Lock
+    async function startWakeLock() {
+
+        if (!("wakeLock" in navigator)) {
+
+            updateStatus(
+                false,
+                "Wake Lock Not Supported",
+                true
+            );
+
+            alert(
+                "Your browser does not support the Screen Wake Lock API."
+            );
+
+            return;
+        }
+
+        try {
+
+            wakeLock = await navigator.wakeLock.request("screen");
+
+            updateStatus(
+                true,
+                "Screen Wake Lock Active"
+            );
+
+            // Wake lock can be released by the browser/OS
+            wakeLock.addEventListener("release", () => {
+
+                wakeLock = null;
+
+                updateStatus(
+                    false,
+                    "Screen Wake Lock Released"
+                );
+
+            });
+
+        } catch (error) {
+
+            console.error("Wake Lock Error:", error);
+
+            updateStatus(
+                false,
+                "Unable to Keep Screen Awake",
+                true
+            );
+
+        }
+    }
+
+
+    // Stop Wake Lock
+    async function stopWakeLock() {
+
+        if (wakeLock !== null) {
+
+            try {
+
+                await wakeLock.release();
+
+            } catch (error) {
+
+                console.error(
+                    "Release Error:",
+                    error
+                );
+
+            }
+
+            wakeLock = null;
+        }
+
+        updateStatus(
+            false,
+            "Screen Wake Lock Off"
+        );
+    }
+
+
+    // Start button
+    startBtn.addEventListener(
+        "click",
+        startWakeLock
+    );
+
+
+    // Stop button
+    stopBtn.addEventListener(
+        "click",
+        stopWakeLock
+    );
+
+
+    // Re-acquire Wake Lock when returning
+    // to the browser tab.
+    document.addEventListener(
+        "visibilitychange",
+        async () => {
+
+            if (
+                document.visibilityState === "visible" &&
+                wakeLock === null
+            ) {
+
+                // Only automatically re-acquire if
+                // the user previously enabled it.
+                const wasEnabled =
+                    localStorage.getItem(
+                        "keepScreenOn"
+                    );
+
+                if (wasEnabled === "true") {
+
+                    await startWakeLock();
+
+                }
+            }
+        }
+    );
+
+
+    // Remember user's choice
+    startBtn.addEventListener(
+        "click",
+        () => {
+
+            localStorage.setItem(
+                "keepScreenOn",
+                "true"
+            );
+
+        }
+    );
+
+
+    stopBtn.addEventListener(
+        "click",
+        () => {
+
+            localStorage.setItem(
+                "keepScreenOn",
+                "false"
+            );
+
+        }
+    );
+
+
+</script>
+
+</body>
+</html>
